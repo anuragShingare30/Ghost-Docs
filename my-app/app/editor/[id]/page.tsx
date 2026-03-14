@@ -1,5 +1,3 @@
-import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
 import DocumentEditor from "../../components/document-editor";
 
 type EditorPageProps = {
@@ -7,12 +5,6 @@ type EditorPageProps = {
 };
 
 export default async function EditorPage({ params }: EditorPageProps) {
-  const { userId } = await auth();
-
-  if (!userId) {
-    redirect("/sign-in");
-  }
-
   const { id } = await params;
 
   return (

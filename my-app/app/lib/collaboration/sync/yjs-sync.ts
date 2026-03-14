@@ -25,9 +25,37 @@ export class YjsSync {
       return null;
     }
 
+    let prefixLength = 0;
+    const maxPrefix = Math.min(current.length, nextValue.length);
+    while (
+      prefixLength < maxPrefix &&
+      current[prefixLength] === nextValue[prefixLength]
+    ) {
+      prefixLength += 1;
+    }
+
+    let currentSuffixLength = current.length;
+    let nextSuffixLength = nextValue.length;
+    while (
+      currentSuffixLength > prefixLength &&
+      nextSuffixLength > prefixLength &&
+      current[currentSuffixLength - 1] === nextValue[nextSuffixLength - 1]
+    ) {
+      currentSuffixLength -= 1;
+      nextSuffixLength -= 1;
+    }
+
+    const deleteLength = currentSuffixLength - prefixLength;
+    const insertText = nextValue.slice(prefixLength, nextSuffixLength);
+
     this.doc.transact(() => {
-      this.yText.delete(0, this.yText.length);
-      this.yText.insert(0, nextValue);
+      if (deleteLength > 0) {
+        this.yText.delete(prefixLength, deleteLength);
+      }
+
+      if (insertText.length > 0) {
+        this.yText.insert(prefixLength, insertText);
+      }
     }, "local");
 
     return Y.encodeStateAsUpdate(this.doc);
@@ -38,6 +66,10 @@ export class YjsSync {
     Y.applyUpdate(this.doc, update, "remote");
     this.applyingRemote = false;
     return this.getText();
+  }
+
+  encodeFullState() {
+    return Y.encodeStateAsUpdate(this.doc);
   }
 
   encodeUpdate(update: Uint8Array) {

@@ -36,9 +36,11 @@ async function waitFor(condition: () => boolean, timeoutMs = 500) {
 
 function createSessionOptions() {
   const pubsub = new FakePubsub();
+  const sessionKey = "shared-doc-session-key";
 
   return {
     pubsub,
+    sessionKey,
     session: new SessionManager({
       node: {
         start: async () => undefined,
@@ -49,7 +51,8 @@ function createSessionOptions() {
         ghostId: "ghost-local",
         peerId: "peer-local",
       },
-      token: "session-token",
+      token: "local-peer-token",
+      sessionKey,
       role: "OWNER",
       docId: "doc-editor",
       verifyToken: async () => ({ valid: true, role: "EDITOR" }),
@@ -59,7 +62,7 @@ function createSessionOptions() {
 
 describe("editor collaboration event flow", () => {
   it("accepts remote identity + chat events and tracks peer presence", async () => {
-    const { pubsub, session } = createSessionOptions();
+    const { pubsub, session, sessionKey } = createSessionOptions();
     await session.join();
 
     const peerJoined = vi.fn();
@@ -79,7 +82,7 @@ describe("editor collaboration event flow", () => {
     };
 
     const encryptedIdentity = await encryptCollaborationPayload(
-      "session-token",
+      sessionKey,
       "doc-editor",
       identityEnvelope
     );
@@ -111,7 +114,7 @@ describe("editor collaboration event flow", () => {
     };
 
     const encryptedChat = await encryptCollaborationPayload(
-      "session-token",
+      sessionKey,
       "doc-editor",
       chatEnvelope
     );
@@ -145,5 +148,30 @@ describe("editor collaboration event flow", () => {
     const nextText = replica.applyRemoteUpdate(decoded);
 
     expect(nextText).toBe("hello world");
+  });
+
+  it("merges concurrent peer edits and converges to a shared state", () => {
+    const peerA = new YjsSync("hello");
+    const peerB = new YjsSync("hello");
+
+    const updateA = peerA.applyLocalText("hello A");
+    const updateB = peerB.applyLocalText("hello B");
+
+    expect(updateA).not.toBeNull();
+    expect(updateB).not.toBeNull();
+
+    const updateAEncoded = peerA.encodeUpdate(updateA as Uint8Array);
+    const updateBEncoded = peerB.encodeUpdate(updateB as Uint8Array);
+
+    peerA.applyRemoteUpdate(peerA.decodeUpdate(updateBEncoded));
+    peerB.applyRemoteUpdate(peerB.decodeUpdate(updateAEncoded));
+
+    const finalA = peerA.getText();
+    const finalB = peerB.getText();
+
+    expect(finalA).toBe(finalB);
+    expect(finalA).toContain("hello");
+    expect(finalA).toContain("A");
+    expect(finalA).toContain("B");
   });
 });

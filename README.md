@@ -36,6 +36,7 @@ This order reduces risk by validating identity, permissions, and data model befo
 	- Peer discovery, session join/leave, and presence.
 	- Real-time sync for edits, cursors, and chat.
 	- Session events emitted for collaboration state.
+	- **Peer-to-peer editing**
 
 5. **Access Verification + Sharing**
 	- Permission checks integrated into session join.

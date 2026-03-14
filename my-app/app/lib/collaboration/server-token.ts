@@ -20,6 +20,14 @@ function sign(value: string) {
     .digest("base64url");
 }
 
+export function createCollaborationSessionKey(docId: string) {
+  // Shared key material for all authorized peers in the same document session.
+  return crypto
+    .createHmac("sha256", COLLAB_SECRET)
+    .update(`session:${docId}`)
+    .digest("base64url");
+}
+
 export function createCollaborationToken(payload: {
   docId: string;
   ghostId: string;

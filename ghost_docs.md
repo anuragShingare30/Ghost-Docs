@@ -20,7 +20,7 @@ Visual overview:
 
 ```
                  ┌─────────────────────────┐
-                 │        Base Chain       │
+                 │                         │
                  │ Access verification     │
                  │ Permission registry     │
                  └─────────────▲───────────┘

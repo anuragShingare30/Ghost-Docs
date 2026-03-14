@@ -28,6 +28,15 @@ type PubsubMessageEvent = Event & {
   };
 };
 
+type IdentityVerifyEventDetail = {
+  peerId: string;
+  ghostId: string;
+  valid: boolean;
+  role?: CollaborationRole;
+  timestamp: number;
+  reason?: string;
+};
+
 function isNoTopicPeerError(error: unknown) {
   return (
     error instanceof Error &&
@@ -52,6 +61,7 @@ export class SessionManager extends EventTarget {
     node: CollaborationNode;
     identity: CollaborationIdentity;
     token: string;
+    sessionKey?: string;
     role: CollaborationRole;
     docId: string;
     verifyToken?: typeof verifyCollabToken;
@@ -63,7 +73,7 @@ export class SessionManager extends EventTarget {
     this.role = options.role;
     this.docId = options.docId;
     this.topic = `ghostdocs-doc-${options.docId}`;
-    this.sessionSecret = options.token;
+    this.sessionSecret = options.sessionKey ?? options.token;
     this.presence = new PresenceManager();
     this.peers = new Map();
     this.verifyToken = options.verifyToken ?? verifyCollabToken;
@@ -218,6 +228,21 @@ export class SessionManager extends EventTarget {
           ghostId: envelope.ghostId,
         });
 
+        const identityVerifyDetail: IdentityVerifyEventDetail = {
+          peerId: envelope.peerId,
+          ghostId: envelope.ghostId,
+          valid: verification.valid,
+          role: verification.role,
+          timestamp: Date.now(),
+          reason: verification.valid ? undefined : "TOKEN_VERIFICATION_FAILED",
+        };
+
+        this.dispatchEvent(
+          new CustomEvent("identity:verify", {
+            detail: identityVerifyDetail,
+          })
+        );
+
         if (!verification.valid) {
           return;
         }
@@ -260,7 +285,18 @@ export class SessionManager extends EventTarget {
       }
 
       this.dispatchEvent(new CustomEvent("message", { detail: envelope }));
-    } catch {
+    } catch (error) {
+      this.dispatchEvent(
+        new CustomEvent("message:decrypt-failed", {
+          detail: {
+            timestamp: Date.now(),
+            reason:
+              error instanceof Error
+                ? error.message
+                : "MALFORMED_OR_UNREADABLE_MESSAGE",
+          },
+        })
+      );
       // Ignore malformed/unreadable messages from unknown peers.
     }
   };

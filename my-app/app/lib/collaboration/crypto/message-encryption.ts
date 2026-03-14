@@ -2,6 +2,7 @@
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
+const sessionKeyCache = new Map<string, Promise<CryptoKey>>();
 
 function bytesToBase64(bytes: Uint8Array) {
   let binary = "";
@@ -21,6 +22,13 @@ function base64ToBytes(base64: string) {
 }
 
 async function deriveSessionKey(sessionSecret: string, docId: string) {
+  const cacheKey = `${docId}:${sessionSecret}`;
+  const existing = sessionKeyCache.get(cacheKey);
+  if (existing) {
+    return existing;
+  }
+
+  const derivedKeyPromise = (async () => {
   const baseKey = await crypto.subtle.importKey(
     "raw",
     encoder.encode(sessionSecret),
@@ -29,18 +37,22 @@ async function deriveSessionKey(sessionSecret: string, docId: string) {
     ["deriveKey"]
   );
 
-  return crypto.subtle.deriveKey(
-    {
-      name: "PBKDF2",
-      hash: "SHA-256",
-      salt: encoder.encode(`ghostdocs-collab:${docId}`),
-      iterations: 100_000,
-    },
-    baseKey,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"]
-  );
+    return crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        hash: "SHA-256",
+        salt: encoder.encode(`ghostdocs-collab:${docId}`),
+        iterations: 100_000,
+      },
+      baseKey,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"]
+    );
+  })();
+
+  sessionKeyCache.set(cacheKey, derivedKeyPromise);
+  return derivedKeyPromise;
 }
 
 type EncryptedCollabPayload = {

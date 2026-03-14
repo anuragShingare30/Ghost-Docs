@@ -1,0 +1,8 @@
+{
+  "peerId": "12D3KooWKZkYSEmyv84g3Z67ZwJksyoY51nFwaNhHU6fz9JJDxZd",
+  "startedAt": "2026-03-14T09:59:10.246Z",
+  "targets": [
+    "/ip4/127.0.0.1/tcp/15002/ws/p2p/12D3KooWKZkYSEmyv84g3Z67ZwJksyoY51nFwaNhHU6fz9JJDxZd",
+    "/dns4/localhost/tcp/15002/ws/p2p/12D3KooWKZkYSEmyv84g3Z67ZwJksyoY51nFwaNhHU6fz9JJDxZd"
+  ]
+}

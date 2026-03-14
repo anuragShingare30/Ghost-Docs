@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useDocumentCollaboration } from "../lib/collaboration/use-document-collaboration";
+import CollaborationDiagnostics from "./collaboration-diagnostics";
 
 type ApiSuccess<T> = {
   success: true;
@@ -40,6 +41,13 @@ type ContentPayload = {
   updatedAt?: string | null;
 };
 
+function shortPeerId(peerId: string) {
+  if (peerId.length <= 18) {
+    return peerId;
+  }
+  return `${peerId.slice(0, 10)}...${peerId.slice(-6)}`;
+}
+
 function getErrorMessage<T>(response: ApiResponse<T>) {
   if (!response.success) {
     return response.error.message;
@@ -66,6 +74,7 @@ export default function DocumentEditor({ documentId }: DocumentEditorProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [fileverseLink, setFileverseLink] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState("");
+  const [lastRealtimeSyncAt, setLastRealtimeSyncAt] = useState<number | null>(null);
 
   const metadataUrl = useMemo(() => {
     const params = new URLSearchParams();
@@ -169,11 +178,24 @@ export default function DocumentEditor({ documentId }: DocumentEditorProps) {
   const collaboration = useDocumentCollaboration({
     documentId,
     enabled: !isLoading,
+    accessToken: token,
     initialContent: content,
     onRemoteContentChange: (nextValue) => {
       setContent(nextValue);
+      setLastRealtimeSyncAt(Date.now());
     },
   });
+
+  const sessionPeersById = useMemo(() => {
+    return new Map(collaboration.peers.map((peer) => [peer.peerId, peer]));
+  }, [collaboration.peers]);
+
+  const activePeerIds = useMemo(() => {
+    if (collaboration.connectedPeerIds.length > 0) {
+      return collaboration.connectedPeerIds;
+    }
+    return collaboration.peers.map((peer) => peer.peerId);
+  }, [collaboration.connectedPeerIds, collaboration.peers]);
 
   async function handleChatSend() {
     const value = chatInput.trim();
@@ -204,6 +226,9 @@ export default function DocumentEditor({ documentId }: DocumentEditorProps) {
           <p className="text-xs text-neutral-500">
             Local peer: {collaboration.localPeerId || "pending"} · libp2p connections: {" "}
             {collaboration.connectionCount}
+          </p>
+          <p className="text-xs text-emerald-300">
+            Live sync: {lastRealtimeSyncAt ? `active (${new Date(lastRealtimeSyncAt).toLocaleTimeString()})` : "waiting for remote updates"}
           </p>
         </div>
         <div className="flex gap-2">
@@ -257,17 +282,29 @@ export default function DocumentEditor({ documentId }: DocumentEditorProps) {
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div className="rounded-md border border-neutral-800 bg-neutral-950/60 p-3">
           <p className="text-xs uppercase tracking-wider text-neutral-400">
-            Active peers ({collaboration.peers.length})
+            Active peers ({activePeerIds.length})
           </p>
-          {collaboration.peers.length === 0 ? (
+          {activePeerIds.length === 0 ? (
             <p className="mt-2 text-sm text-neutral-500">No peers connected.</p>
           ) : (
             <ul className="mt-2 space-y-1 text-sm text-neutral-300">
-              {collaboration.peers.map((peer) => (
-                <li key={peer.peerId}>
-                  {peer.ghostId} · {peer.role}
+              {activePeerIds.map((peerId) => {
+                const peer = sessionPeersById.get(peerId);
+                return (
+                <li key={peerId} className="rounded border border-neutral-800 bg-neutral-900/40 p-2">
+                  {peer ? (
+                    <p className="text-neutral-200">
+                      {peer.ghostId} · {peer.role}
+                    </p>
+                  ) : (
+                    <p className="text-neutral-200">Transport connected (session pending)</p>
+                  )}
+                  <p className="text-xs text-neutral-500">
+                    Peer: {shortPeerId(peerId)}
+                  </p>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </div>
@@ -302,6 +339,8 @@ export default function DocumentEditor({ documentId }: DocumentEditorProps) {
           </div>
         </div>
       </div>
+
+      <CollaborationDiagnostics diagnostics={collaboration.diagnostics} />
 
       {fileverseLink ? (
         <p className="mt-3 text-xs text-neutral-400">
