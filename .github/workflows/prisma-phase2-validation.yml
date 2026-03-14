@@ -1,0 +1,47 @@
+name: Prisma Phase2 Validation
+
+on:
+  pull_request:
+    paths:
+      - "my-app/prisma/**"
+      - "my-app/app/api/**"
+      - "my-app/app/lib/**"
+      - "my-app/package.json"
+      - "my-app/package-lock.json"
+      - "my-app/prisma.config.ts"
+  push:
+    branches: [main]
+    paths:
+      - "my-app/prisma/**"
+      - "my-app/app/api/**"
+      - "my-app/app/lib/**"
+      - "my-app/package.json"
+      - "my-app/package-lock.json"
+      - "my-app/prisma.config.ts"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: my-app
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: my-app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Prisma schema
+        run: npm run db:validate
+
+      - name: Check migration/schema drift
+        run: npm run db:drift-check
