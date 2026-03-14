@@ -12,6 +12,54 @@ The system is designed to minimize central coordination, keep documents encrypte
 
 ---
 
+## Summary
+
+**GhostDocs** is a privacy-first, decentralized collaborative document platform. Here is a concise overview of its context:
+
+### What It Is
+A web application that lets users create, encrypt, and collaboratively edit documents in real time — without a central server storing any plaintext content. Users are identified by anonymized **GhostIDs** rather than wallet addresses or real-world identifiers, preserving privacy throughout.
+
+### Tech Stack
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js · TypeScript · Tailwind CSS |
+| Authentication | Clerk (email/social) |
+| Wallet Connect | wagmi · viem · RainbowKit |
+| P2P Collaboration | js-libp2p |
+| Database (metadata) | Neon (Postgres via Prisma) |
+| Encrypted Storage | Fileverse (or compatible adapter) |
+
+### Architecture (5 Layers)
+1. **Client Layer** — Next.js UI for editing, sharing, chat, and presence; handles local encryption/decryption and P2P peer communication.
+2. **Identity Layer** — Clerk auth + optional wallet binding; generates a per-user `GhostID` and `PeerID` that are used instead of real identities.
+3. **Collaboration Layer** — js-libp2p peer-to-peer sessions for real-time document sync, cursor tracking, user presence, and live chat with no central relay.
+4. **Storage Layer** — Documents are encrypted client-side before upload; only encrypted blobs are stored externally; version metadata is kept in Neon.
+5. **Verification / Access Layer** — Neon-backed permission registry supporting Private, Link-access, and Public document modes with scoped/expiring share links.
+
+### Current Implementation Status
+| Phase | Description | Status |
+|---|---|---|
+| 1 | Foundation — App shell, Clerk auth, wallet connect, GhostID | ✅ Completed (core) |
+| 2 | Data model + API — Prisma/Neon schema, API routes, rate limiting | ✅ Completed (MVP) |
+| 3 | Document Encryption + Storage Adapter | 🔲 Not started |
+| 4 | Collaboration Layer (LibP2P) | 🔲 Not started |
+| 5 | Access Verification + Sharing | 🟡 Partially completed |
+| 6 | Hardening + Observability | 🔲 Not started |
+
+### Recommended Next Steps
+1. Complete **Phase 3** — build client-side encryption and the Fileverse storage adapter before any plaintext touches persistence.
+2. Implement **Phase 4** — the LibP2P session protocol for editor sync and presence.
+3. Finish **Phase 5** — enforce access checks inside the live P2P session handshake.
+4. Execute **Phase 6** — structured logging, rate limiting, security hardening, and E2E tests before production.
+
+### Security & Privacy Principles
+- End-to-end encryption; no plaintext stored server-side.
+- Minimal metadata: no IP logs, no editing history tied to real identity.
+- GhostID-based collaboration hides wallet addresses from peers.
+- Link-based access with scoped permissions and expiration.
+
+---
+
 ## Build Order (What to Build First)
 
 This order reduces risk by validating identity, permissions, and data model before real-time P2P complexity.
