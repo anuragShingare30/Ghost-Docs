@@ -1,0 +1,122 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+// npx prisma migrate dev --name init
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum DocumentAccess {
+  PRIVATE
+  LINK
+  PUBLIC
+}
+
+enum PermissionRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum AuditEventType {
+  DOCUMENT_CREATED
+  PERMISSION_GRANTED
+  LINK_CREATED
+}
+
+model User {
+  id            String   @id @default(cuid())
+  clerkId       String   @unique
+  ghostId       String   @unique
+  walletAddress String?  @db.VarChar(128)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  documentsOwned Document[]        @relation("UserDocumentsOwned")
+  permissions    Permission[]
+  shareLinks     ShareLink[]       @relation("UserShareLinks")
+  auditEvents    AuditEvent[]      @relation("UserAuditEvents")
+  documentEdits  DocumentVersion[] @relation("UserDocumentVersions")
+
+  @@index([walletAddress])
+}
+
+model Document {
+  id        String         @id @default(cuid())
+  ownerId   String
+  title     String         @db.VarChar(200)
+  access    DocumentAccess @default(PRIVATE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  owner       User              @relation("UserDocumentsOwned", fields: [ownerId], references: [id])
+  versions    DocumentVersion[]
+  permissions Permission[]
+  shareLinks  ShareLink[]
+  auditEvents AuditEvent[]
+
+  @@index([ownerId])
+}
+
+model DocumentVersion {
+  id          String   @id @default(cuid())
+  documentId  String
+  storageUri  String   @db.VarChar(512)
+  createdAt   DateTime @default(now())
+  createdById String?
+
+  document  Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation("UserDocumentVersions", fields: [createdById], references: [id])
+
+  @@index([documentId])
+}
+
+model Permission {
+  id         String         @id @default(cuid())
+  documentId String
+  userId     String
+  role       PermissionRole
+  createdAt  DateTime       @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, userId])
+  @@index([userId])
+}
+
+model ShareLink {
+  id          String         @id @default(cuid())
+  documentId  String
+  token       String         @unique
+  accessLevel PermissionRole @default(VIEWER)
+  expiresAt   DateTime?
+  createdAt   DateTime       @default(now())
+  createdById String?
+
+  document  Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation("UserShareLinks", fields: [createdById], references: [id])
+
+  @@index([documentId])
+}
+
+model AuditEvent {
+  id         String         @id @default(cuid())
+  documentId String
+  actorId    String?
+  eventType  AuditEventType
+  metadata   Json?
+  createdAt  DateTime       @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  actor    User?    @relation("UserAuditEvents", fields: [actorId], references: [id])
+
+  @@index([documentId])
+}
