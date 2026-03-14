@@ -1,0 +1,37 @@
+test-results
+node_modules
+coverage
+dev-dist/
+orbitdb*/
+relay/test-relay-datastore/
+relay/test-relay-datastore-no-pinning/
+server-helia-*/
+server-*/
+relay/relay-datastore/
+relay-datastore/
+playwright-report/
+p2p-todo-demo
+e2e/relay-info.json
+e2e/web-info.json
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
+log/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
